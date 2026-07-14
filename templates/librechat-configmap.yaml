@@ -75,3 +75,25 @@ data:
         {{- omit $server "enabled" | toYaml | nindent 8 }}
       {{- end }}
       {{- end }}
+
+    # LibreChat's SSRF protection blocks MCP connections to any host not
+    # explicitly allowed. allowedAddresses (rather than the stricter
+    # allowedDomains) only exempts these specific hosts, leaving normal
+    # outbound access to everything else untouched. Always includes ARGUS's
+    # own in-cluster Service; every additional enabled mcpServers.* entry's
+    # host is derived from its url automatically.
+    mcpSettings:
+      allowedAddresses:
+        {{- if .Values.argusMcp.enabled }}
+        - {{ printf "%s.%s.svc.cluster.local:%v" (include "argus.mcp.fullname" .) (include "argus.mcp.namespace" .) .Values.argusMcp.service.port | quote }}
+        {{- end }}
+        {{- range $name, $server := .Values.mcpServers }}
+        {{- if and $server.enabled $server.url }}
+        {{- $parsed := urlParse $server.url }}
+        {{- $host := $parsed.host }}
+        {{- if not (contains ":" $host) }}
+        {{- $host = printf "%s:%s" $host (ternary "443" "80" (eq $parsed.scheme "https")) }}
+        {{- end }}
+        - {{ $host | quote }}
+        {{- end }}
+        {{- end }}
