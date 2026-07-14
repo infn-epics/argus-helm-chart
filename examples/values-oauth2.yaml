@@ -1,0 +1,45 @@
+# OIDC SSO only, local email/password login disabled. Works with any
+# compliant IdP (Keycloak, Auth0, Azure AD, Okta, ...) — set issuer/
+# clientId to match yours; OPENID_CLIENT_SECRET comes from secrets.data.
+#
+# Usage:
+#   helm install my-argus . -f examples/values-oauth2.yaml \
+#     --set argusMcp.image.repository=<your-registry>/argus-mcp-server \
+#     --set secrets.data.OPENID_CLIENT_SECRET=<client-secret> \
+#     --set secrets.data.OPENAI_API_KEY=sk-...
+
+auth:
+  mode: oauth2
+  oauth2:
+    issuer: "https://idp.example.org/realms/argus"
+    clientId: "librechat"
+    clientSecretKey: "OPENID_CLIENT_SECRET"
+    callbackURL: "https://chat.example.org/oauth/openid/callback"
+    scope: "openid profile email"
+    usePKCE: true
+    buttonLabel: "Sign in with INFN SSO"
+    autoRedirect: true
+
+librechat:
+  ingress:
+    enabled: true
+    hosts:
+      - host: chat.example.org
+        paths:
+          - path: /
+            pathType: ImplementationSpecific
+
+llm:
+  endpoints:
+    - name: "OpenAI"
+      apiKeySecretKey: "OPENAI_API_KEY"
+      baseURL: "https://api.openai.com/v1"
+      models:
+        default: ["gpt-4o"]
+        fetch: true
+
+argusMcp:
+  enabled: true
+  backends:
+    epics:
+      caAddrList: "10.0.0.0/24"

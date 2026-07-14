@@ -1,0 +1,25 @@
+apiVersion: v2
+name: argus-helm-chart
+description: >
+  Deploys LibreChat as an AI control-room assistant with pluggable LLM
+  endpoints and MCP servers, including first-class deployment and backend
+  wiring for the ARGUS accelerator-control MCP server.
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+home: https://github.com/infn-epics/argus-mcp-server
+icon: https://www.librechat.ai/librechat_alt.svg
+keywords:
+  - librechat
+  - mcp
+  - accelerator-controls
+  - epics
+  - llm
+maintainers:
+  - name: INFN EPICS
+    url: https://github.com/infn-epics
+
+dependencies:
+  - name: librechat
+    version: "2.0.7"
+    repository: "oci://ghcr.io/danny-avila/librechat-chart"

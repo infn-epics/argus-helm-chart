@@ -1,0 +1,67 @@
+# Multiple LLM providers + multiple MCP servers: ARGUS (deployed by this
+# chart, full backend wiring) plus a generic RAGFLOW MCP server example
+# (deployed elsewhere, just registered here by URL) plus local auth.
+#
+# Usage:
+#   helm install my-argus . -f examples/values-multi-llm-multi-mcp.yaml \
+#     --set argusMcp.image.repository=<your-registry>/argus-mcp-server \
+#     --set secrets.data.OPENAI_API_KEY=sk-... \
+#     --set secrets.data.ANTHROPIC_API_KEY=sk-ant-... \
+#     --set secrets.data.MISTRAL_API_KEY=... \
+#     --set secrets.data.RAGFLOW_API_KEY=...
+
+auth:
+  mode: basic
+
+llm:
+  endpoints:
+    - name: "OpenAI"
+      apiKeySecretKey: "OPENAI_API_KEY"
+      baseURL: "https://api.openai.com/v1"
+      models:
+        default: ["gpt-4o", "gpt-4o-mini"]
+        fetch: true
+
+    - name: "Anthropic"
+      provider: "anthropic"
+      apiKeySecretKey: "ANTHROPIC_API_KEY"
+      baseURL: "https://api.anthropic.com"
+      models:
+        default: ["claude-sonnet-4-5", "claude-opus-4-5"]
+
+    - name: "Mistral"
+      apiKeySecretKey: "MISTRAL_API_KEY"
+      baseURL: "https://api.mistral.ai/v1"
+      models:
+        default: ["mistral-large-latest", "mistral-small-latest"]
+        fetch: true
+
+mcpServers:
+  ragflow:
+    enabled: true
+    type: streamable-http
+    url: "http://ragflow-mcp.ragflow.svc.cluster.local:9382/mcp"
+    headers:
+      Authorization: "Bearer ${RAGFLOW_API_KEY}"
+    chatMenu: true
+    title: "RAGFLOW"
+    description: "Search and retrieve from RAGFLOW-indexed document collections."
+
+argusMcp:
+  enabled: true
+  backends:
+    epics:
+      caAddrList: "10.0.0.0/24"
+    archiver:
+      baseUrl: "http://archiver-appliance.accelerator.svc.cluster.local:17665"
+    channelfinder:
+      baseUrl: "http://channelfinder.accelerator.svc.cluster.local:8080"
+      username: "argus"
+      passwordSecretKey: "CHANNELFINDER_PASSWORD"
+    kubernetes:
+      namespaceDefault: "accelerator"
+    documentation:
+      docsPath: "/data/docs"
+      persistence:
+        enabled: true
+        size: "2Gi"

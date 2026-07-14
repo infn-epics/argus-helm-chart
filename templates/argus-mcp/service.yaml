@@ -1,0 +1,18 @@
+{{- if .Values.argusMcp.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "argus.mcp.fullname" . }}
+  namespace: {{ include "argus.mcp.namespace" . }}
+  labels:
+    {{- include "argus.mcp.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  ports:
+    - name: sse
+      port: {{ .Values.argusMcp.service.port }}
+      targetPort: {{ .Values.argusMcp.service.port }}
+      protocol: TCP
+  selector:
+    {{- include "argus.mcp.selectorLabels" . | nindent 4 }}
+{{- end }}

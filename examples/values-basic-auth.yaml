@@ -1,0 +1,34 @@
+# Minimal example: local email/password login only, ARGUS wired to a
+# single EPICS backend (everything else left unconfigured — ARGUS reports
+# those sections as "unconfigured" rather than erroring, per its own
+# graceful-degradation design). No other LLM/MCP servers.
+#
+# Usage:
+#   helm dependency build .
+#   helm install my-argus . -f examples/values-basic-auth.yaml \
+#     --set argusMcp.image.repository=<your-registry>/argus-mcp-server \
+#     --set secrets.data.OPENAI_API_KEY=sk-...
+
+auth:
+  mode: basic
+  basic:
+    allowRegistration: true
+    allowPasswordReset: true
+
+llm:
+  endpoints:
+    - name: "OpenAI"
+      apiKeySecretKey: "OPENAI_API_KEY"
+      baseURL: "https://api.openai.com/v1"
+      models:
+        default: ["gpt-4o-mini"]
+        fetch: true
+
+mcpServers: {}
+
+argusMcp:
+  enabled: true
+  backends:
+    epics:
+      caAddrList: "10.0.0.0/24"
+      caAutoAddrList: true

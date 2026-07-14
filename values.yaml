@@ -1,0 +1,273 @@
+# Default values for argus-helm-chart.
+#
+# This chart is a thin composition layer over the official LibreChat Helm
+# chart (dependency "librechat"). Everything under the `librechat:` key is
+# passed straight through to that subchart — see
+# https://github.com/danny-avila/LibreChat/blob/main/helm/librechat/values.yaml
+# for its full reference. Everything else (`llm`, `mcpServers`, `argusMcp`,
+# `auth`, `secrets`) is composed by *this* chart's templates into:
+#   - a ConfigMap holding the rendered librechat.yaml
+#     (wired via librechat.librechat.existingConfigYaml)
+#   - a single Secret holding every env var LibreChat's process needs —
+#     including non-sensitive auth toggles, not just credentials, because
+#     the upstream chart's `configEnv` map is static (can't depend on
+#     `auth.mode` below) while a Secret WE render can use full template
+#     conditionals. See docs/architecture.md for why.
+#     (wired via librechat.global.librechat.existingSecretName)
+#   - (optionally) a Deployment/Service/RBAC for the ARGUS MCP server,
+#     auto-registered as an mcpServers entry in the rendered librechat.yaml.
+#
+# IMPORTANT: this chart uses fixed, non-release-templated resource names
+# ("argus-librechat-config", "argus-librechat-credentials") for the two
+# resources above, because Helm resolves all chart+subchart values
+# statically before any template renders — a parent chart's template
+# cannot compute a value and feed it into a subchart's value tree within
+# the same release. This mirrors the upstream chart's own convention
+# (its default `existingSecretName` is itself a hardcoded literal). It
+# means: one release of this chart per namespace. See README.md.
+
+# -----------------------------------------------------------------------
+# Fixed resource names — change together if you must, but there's rarely
+# a reason to. Referenced both by this chart's own templates and by the
+# librechat.* passthrough values below, so they MUST stay in sync.
+# -----------------------------------------------------------------------
+resourceNames:
+  configYaml: "argus-librechat-config"
+  credentialsSecret: "argus-librechat-credentials"
+
+nameOverride: ""
+fullnameOverride: ""
+
+# -----------------------------------------------------------------------
+# Passthrough into the upstream "librechat" subchart. Only the keys this
+# chart actively depends on are set here — everything else (ingress,
+# resources, autoscaling, mongodb/meilisearch/redis sizing, ...) uses the
+# subchart's own sensible defaults and can be overridden the normal Helm
+# way, e.g. `librechat.ingress.hosts[0].host=chat.example.org`.
+# -----------------------------------------------------------------------
+librechat:
+  ingress:
+    enabled: true
+    hosts:
+      - host: chat.example.org
+        paths:
+          - path: /
+            pathType: ImplementationSpecific
+
+  # only "lite" RAG is supported upstream; leave disabled unless you also
+  # configure a vector DB — see the upstream chart's own docs
+  librechat-rag-api:
+    enabled: false
+
+  mongodb:
+    enabled: true
+  meilisearch:
+    enabled: true
+    auth:
+      # must match resourceNames.credentialsSecret above
+      existingMasterKeySecret: "argus-librechat-credentials"
+  redis:
+    enabled: false
+
+  librechat:
+    # ConfigMap rendered by templates/librechat-configmap.yaml (this chart)
+    existingConfigYaml: "argus-librechat-config"
+    # additional *static* env vars for the LibreChat process, merged by the
+    # upstream chart into its own auto-generated ConfigMap. Prefer
+    # `secrets.data` / `auth.*` below for anything auth.mode-dependent —
+    # this is only an escape hatch for advanced static overrides.
+    configEnv: {}
+
+  global:
+    librechat:
+      # THE key that actually matters: this is what the upstream
+      # Deployment's envFrom.secretRef reads. Must match
+      # resourceNames.credentialsSecret above.
+      existingSecretName: "argus-librechat-credentials"
+      # which secret key backs the "default" LLM API key (only consumed by
+      # the librechat-rag-api subchart, for embeddings)
+      existingSecretApiKey: "OPENAI_API_KEY"
+
+# -----------------------------------------------------------------------
+# LLM endpoints -> endpoints.custom[] in the rendered librechat.yaml.
+# Add as many as you like; each apiKeySecretKey must have a matching entry
+# under secrets.data (or already exist in an externally-supplied secret).
+# -----------------------------------------------------------------------
+llm:
+  endpoints:
+    - name: "OpenAI"
+      apiKeySecretKey: "OPENAI_API_KEY"
+      baseURL: "https://api.openai.com/v1"
+      models:
+        default: ["gpt-4o", "gpt-4o-mini"]
+        fetch: true
+      titleConvo: true
+      modelDisplayLabel: "OpenAI"
+
+    - name: "Anthropic"
+      provider: "anthropic"
+      apiKeySecretKey: "ANTHROPIC_API_KEY"
+      baseURL: "https://api.anthropic.com"
+      models:
+        default: ["claude-sonnet-4-5", "claude-opus-4-5"]
+        fetch: false
+      titleConvo: true
+      modelDisplayLabel: "Claude"
+
+# -----------------------------------------------------------------------
+# Generic, extensible MCP servers -> mcpServers.<key> in librechat.yaml.
+# The ARGUS entry is composed separately (see argusMcp below) and merged
+# in automatically when argusMcp.enabled is true; anything you add here
+# is merged alongside it verbatim (same shape LibreChat itself expects:
+# https://www.librechat.ai/docs/configuration/librechat_yaml/object_structure/mcp_servers).
+# -----------------------------------------------------------------------
+mcpServers:
+  ragflow:
+    enabled: false # example only — RAGFLOW isn't deployed by this chart
+    type: "streamable-http"
+    url: "http://ragflow-mcp.ragflow.svc.cluster.local:9382/mcp"
+    headers:
+      Authorization: "Bearer ${RAGFLOW_API_KEY}" # RAGFLOW_API_KEY -> secrets.data
+    chatMenu: true
+
+# -----------------------------------------------------------------------
+# ARGUS MCP server: deployed by this chart (Deployment + Service +
+# ServiceAccount + RBAC), with its 8 backend services configured here and
+# injected as the pod's own env vars — NOT into librechat.yaml, which only
+# needs a `type` + `url` pointing at the in-cluster Service. See
+# ../argus-mcp-server/.env.example for what each of these maps to.
+# -----------------------------------------------------------------------
+argusMcp:
+  enabled: true
+
+  image:
+    # REQUIRED: build & push from ../argus-mcp-server's Dockerfile first —
+    # this chart does not assume any published image exists.
+    #   docker build -t <your-registry>/argus-mcp-server:<tag> ../argus-mcp-server
+    #   docker push <your-registry>/argus-mcp-server:<tag>
+    repository: ""
+    tag: "latest"
+    pullPolicy: IfNotPresent
+
+  replicaCount: 1
+
+  service:
+    port: 8000
+
+  # matches `python -m argus --transport sse`; registered in the rendered
+  # librechat.yaml as `type: sse`
+  transport: "sse"
+
+  resources: {}
+  #  limits: { cpu: 500m, memory: 512Mi }
+  #  requests: { cpu: 100m, memory: 256Mi }
+
+  rbac:
+    create: true
+    # false = namespaced Role+RoleBinding scoped to kubernetes.namespaceDefault
+    #         (or the release namespace if that's blank)
+    # true  = ClusterRole+ClusterRoleBinding, for sites where IOCs span
+    #         multiple namespaces
+    clusterWide: false
+
+  logging:
+    level: "INFO"
+    json: true
+
+  backends:
+    epics:
+      caAddrList: ""
+      caAutoAddrList: true
+      pvaAddrList: ""
+
+    archiver:
+      baseUrl: ""
+
+    channelfinder:
+      baseUrl: ""
+      username: ""
+      passwordSecretKey: "CHANNELFINDER_PASSWORD"
+
+    kubernetes:
+      # left blank = ARGUS uses its own in-cluster ServiceAccount (this
+      # chart's RBAC below) — no kubeconfig needed, this is the
+      # recommended path for an in-cluster deployment
+      namespaceDefault: ""
+      iocLabelSelectorTemplate: "app=ioc,device={ioc_name}"
+
+    argocd:
+      serverUrl: ""
+      authTokenSecretKey: "ARGOCD_AUTH_TOKEN"
+
+    logbook:
+      baseUrl: ""
+      username: ""
+      passwordSecretKey: "LOGBOOK_PASSWORD"
+
+    elastic:
+      url: ""
+      apiKeySecretKey: "ELASTIC_API_KEY"
+      defaultIndex: "argus-logs"
+
+    documentation:
+      docsPath: "/data/docs"
+      indexPath: "/data/docs/.index"
+      persistence:
+        enabled: false
+        size: "1Gi"
+        storageClassName: ""
+        accessMode: "ReadWriteOnce"
+
+    cache:
+      deviceTtlSeconds: 300
+      channelfinderTtlSeconds: 120
+      kubernetesTtlSeconds: 30
+
+# -----------------------------------------------------------------------
+# Authentication. LibreChat supports local email/password login and
+# OIDC/OAuth2 SSO simultaneously — pick one or both.
+# -----------------------------------------------------------------------
+auth:
+  mode: "basic" # basic | oauth2 | both
+
+  basic:
+    allowRegistration: true
+    allowPasswordReset: true
+    allowUnverifiedEmailLogin: false
+
+  oauth2:
+    # generic OIDC — works with any compliant IdP (Keycloak, Auth0, Azure
+    # AD, Okta, ...); see
+    # https://www.librechat.ai/docs/configuration/authentication/OAuth2-OIDC
+    issuer: ""
+    clientId: ""
+    # key name inside secrets.data / the rendered Secret
+    clientSecretKey: "OPENID_CLIENT_SECRET"
+    callbackURL: "" # e.g. https://chat.example.org/oauth/openid/callback
+    scope: "openid profile email"
+    usePKCE: true
+    buttonLabel: "Sign in with SSO"
+    autoRedirect: false
+    requiredRole: ""
+
+# -----------------------------------------------------------------------
+# Secret material. `data` is merged verbatim into the rendered Secret
+# (base64-encoded by Kubernetes as usual) alongside the auto-generated
+# JWT/CREDS/MEILI keys and the auth.* toggles above. Never commit real
+# values here — pass via `--set secrets.data.OPENAI_API_KEY=...` or a
+# separate, untracked values file (see examples/).
+# -----------------------------------------------------------------------
+secrets:
+  create: true
+  # set to reuse a pre-existing secret instead of rendering one; must
+  # contain the same keys this chart would otherwise generate
+  existingSecret: ""
+  data: {}
+  #  OPENAI_API_KEY: "sk-..."
+  #  ANTHROPIC_API_KEY: "sk-ant-..."
+  #  CHANNELFINDER_PASSWORD: "..."
+  #  ARGOCD_AUTH_TOKEN: "..."
+  #  LOGBOOK_PASSWORD: "..."
+  #  ELASTIC_API_KEY: "..."
+  #  OPENID_CLIENT_SECRET: "..."
+  #  RAGFLOW_API_KEY: "..."

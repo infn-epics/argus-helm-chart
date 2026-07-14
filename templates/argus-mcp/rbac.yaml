@@ -1,0 +1,70 @@
+{{/*
+Scoped to exactly what argus-mcp-server's Kubernetes provider
+(providers/kubernetes/kubernetes.py in the sibling repo) actually calls:
+list/get pods (list_iocs, get_pod_for_ioc), get pod logs (get_pod_logs),
+delete pods (restart_ioc — a pod delete lets its controller recreate it).
+No write access to anything else.
+*/}}
+{{- if and .Values.argusMcp.enabled .Values.argusMcp.rbac.create }}
+{{- if .Values.argusMcp.rbac.clusterWide }}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "argus.mcp.fullname" . }}
+  labels:
+    {{- include "argus.mcp.labels" . | nindent 4 }}
+rules:
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch", "delete"]
+  - apiGroups: [""]
+    resources: ["pods/log"]
+    verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "argus.mcp.fullname" . }}
+  labels:
+    {{- include "argus.mcp.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "argus.mcp.fullname" . }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "argus.mcp.fullname" . }}
+    namespace: {{ include "argus.mcp.namespace" . }}
+{{- else }}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "argus.mcp.fullname" . }}
+  namespace: {{ include "argus.mcp.watchedNamespace" . }}
+  labels:
+    {{- include "argus.mcp.labels" . | nindent 4 }}
+rules:
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch", "delete"]
+  - apiGroups: [""]
+    resources: ["pods/log"]
+    verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "argus.mcp.fullname" . }}
+  namespace: {{ include "argus.mcp.watchedNamespace" . }}
+  labels:
+    {{- include "argus.mcp.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ include "argus.mcp.fullname" . }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "argus.mcp.fullname" . }}
+    namespace: {{ include "argus.mcp.namespace" . }}
+{{- end }}
+{{- end }}

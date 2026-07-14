@@ -1,0 +1,47 @@
+ARGUS + LibreChat ({{ .Release.Name }}) has been deployed to namespace {{ .Release.Namespace }}.
+
+{{- if .Values.librechat.ingress.enabled }}
+LibreChat should become reachable at:
+{{- range .Values.librechat.ingress.hosts }}
+  http://{{ .host }}
+{{- end }}
+{{- else }}
+Ingress is disabled — port-forward to reach LibreChat:
+  kubectl -n {{ .Release.Namespace }} port-forward svc/{{ .Release.Name }}-librechat {{ .Values.librechat.service.port | default 3080 }}:{{ .Values.librechat.service.port | default 3080 }}
+{{- end }}
+
+{{- if .Values.argusMcp.enabled }}
+
+ARGUS MCP server:
+  Service: {{ include "argus.mcp.fullname" . }}.{{ include "argus.mcp.namespace" . }}.svc.cluster.local:{{ .Values.argusMcp.service.port }}
+  Already registered in LibreChat's mcpServers as "argus".
+
+{{- if not .Values.argusMcp.image.repository }}
+
+  *** argusMcp.image.repository is EMPTY ***
+  The argus-mcp pod will fail to pull an image until you:
+    1. docker build -t <your-registry>/argus-mcp-server:<tag> ../argus-mcp-server
+    2. docker push <your-registry>/argus-mcp-server:<tag>
+    3. helm upgrade {{ .Release.Name }} . --set argusMcp.image.repository=<your-registry>/argus-mcp-server --set argusMcp.image.tag=<tag>
+{{- end }}
+
+  Check its status:
+    kubectl -n {{ include "argus.mcp.namespace" . }} get pods -l app.kubernetes.io/component=argus-mcp
+    kubectl -n {{ include "argus.mcp.namespace" . }} logs -l app.kubernetes.io/component=argus-mcp -f
+{{- end }}
+
+{{- if eq .Values.auth.mode "basic" }}
+
+Auth mode: basic (local email/password). Registration is {{ if .Values.auth.basic.allowRegistration }}enabled{{ else }}disabled{{ end }}.
+{{- else if eq .Values.auth.mode "oauth2" }}
+
+Auth mode: oauth2 (OIDC SSO only, local login disabled).
+{{- if not .Values.auth.oauth2.issuer }}
+  *** auth.oauth2.issuer is EMPTY — SSO login will not work until it's set. ***
+{{- end }}
+{{- else }}
+
+Auth mode: both (local email/password AND OIDC SSO available).
+{{- end }}
+
+Full configuration reference: see this chart's README.md and docs/architecture.md.

@@ -1,0 +1,3 @@
+charts/*.tgz
+*.orig
+.DS_Store

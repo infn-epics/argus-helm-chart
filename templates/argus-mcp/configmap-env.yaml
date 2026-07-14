@@ -1,0 +1,67 @@
+{{/*
+Non-secret ARGUS backend env vars — maps 1:1 onto argus-mcp-server's own
+.env.example. Sensitive counterparts (passwords/tokens/API keys) are
+referenced by the Deployment directly from the shared credentials Secret,
+never placed here.
+*/}}
+{{- if .Values.argusMcp.enabled }}
+{{- $b := .Values.argusMcp.backends }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "argus.mcp.fullname" . }}-env
+  namespace: {{ include "argus.mcp.namespace" . }}
+  labels:
+    {{- include "argus.mcp.labels" . | nindent 4 }}
+data:
+  ARGUS_TRANSPORT: {{ .Values.argusMcp.transport | quote }}
+  ARGUS_SSE_HOST: "0.0.0.0"
+  ARGUS_SSE_PORT: {{ .Values.argusMcp.service.port | quote }}
+  ARGUS_LOG_LEVEL: {{ .Values.argusMcp.logging.level | quote }}
+  ARGUS_LOG_JSON: {{ .Values.argusMcp.logging.json | quote }}
+
+  {{- if $b.epics.caAddrList }}
+  EPICS_CA_ADDR_LIST: {{ $b.epics.caAddrList | quote }}
+  {{- end }}
+  EPICS_CA_AUTO_ADDR_LIST: {{ $b.epics.caAutoAddrList | quote }}
+  {{- if $b.epics.pvaAddrList }}
+  EPICS_PVA_ADDR_LIST: {{ $b.epics.pvaAddrList | quote }}
+  {{- end }}
+
+  {{- if $b.archiver.baseUrl }}
+  ARCHIVER_BASE_URL: {{ $b.archiver.baseUrl | quote }}
+  {{- end }}
+
+  {{- if $b.channelfinder.baseUrl }}
+  CHANNELFINDER_BASE_URL: {{ $b.channelfinder.baseUrl | quote }}
+  {{- end }}
+  {{- if $b.channelfinder.username }}
+  CHANNELFINDER_USERNAME: {{ $b.channelfinder.username | quote }}
+  {{- end }}
+
+  K8S_NAMESPACE_DEFAULT: {{ include "argus.mcp.watchedNamespace" . | quote }}
+  K8S_IOC_LABEL_SELECTOR_TEMPLATE: {{ $b.kubernetes.iocLabelSelectorTemplate | quote }}
+
+  {{- if $b.argocd.serverUrl }}
+  ARGOCD_SERVER_URL: {{ $b.argocd.serverUrl | quote }}
+  {{- end }}
+
+  {{- if $b.logbook.baseUrl }}
+  LOGBOOK_BASE_URL: {{ $b.logbook.baseUrl | quote }}
+  {{- end }}
+  {{- if $b.logbook.username }}
+  LOGBOOK_USERNAME: {{ $b.logbook.username | quote }}
+  {{- end }}
+
+  {{- if $b.elastic.url }}
+  ELASTIC_URL: {{ $b.elastic.url | quote }}
+  {{- end }}
+  ELASTIC_DEFAULT_INDEX: {{ $b.elastic.defaultIndex | quote }}
+
+  DOCS_PATH: {{ $b.documentation.docsPath | quote }}
+  DOCS_INDEX_PATH: {{ $b.documentation.indexPath | quote }}
+
+  CACHE_DEVICE_TTL_SECONDS: {{ $b.cache.deviceTtlSeconds | quote }}
+  CACHE_CHANNELFINDER_TTL_SECONDS: {{ $b.cache.channelfinderTtlSeconds | quote }}
+  CACHE_KUBERNETES_TTL_SECONDS: {{ $b.cache.kubernetesTtlSeconds | quote }}
+{{- end }}

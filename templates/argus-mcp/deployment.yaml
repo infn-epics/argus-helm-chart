@@ -1,0 +1,102 @@
+{{- if .Values.argusMcp.enabled }}
+{{- $b := .Values.argusMcp.backends }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "argus.mcp.fullname" . }}
+  namespace: {{ include "argus.mcp.namespace" . }}
+  labels:
+    {{- include "argus.mcp.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.argusMcp.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "argus.mcp.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        checksum/argus-env: {{ include (print $.Template.BasePath "/argus-mcp/configmap-env.yaml") . | sha256sum }}
+      labels:
+        {{- include "argus.mcp.labels" . | nindent 8 }}
+    spec:
+      serviceAccountName: {{ include "argus.mcp.fullname" . }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+      containers:
+        - name: argus-mcp
+          image: "{{ .Values.argusMcp.image.repository }}:{{ .Values.argusMcp.image.tag }}"
+          imagePullPolicy: {{ .Values.argusMcp.image.pullPolicy }}
+          command: ["python", "-u", "-m", "argus"]
+          args:
+            - "--transport"
+            - {{ .Values.argusMcp.transport | quote }}
+            - "--host"
+            - "0.0.0.0"
+            - "--port"
+            - {{ .Values.argusMcp.service.port | quote }}
+          ports:
+            - name: sse
+              containerPort: {{ .Values.argusMcp.service.port }}
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: {{ include "argus.mcp.fullname" . }}-env
+          env:
+            {{- if $b.channelfinder.passwordSecretKey }}
+            - name: CHANNELFINDER_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.resourceNames.credentialsSecret }}
+                  key: {{ $b.channelfinder.passwordSecretKey }}
+                  optional: true
+            {{- end }}
+            {{- if $b.argocd.authTokenSecretKey }}
+            - name: ARGOCD_AUTH_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.resourceNames.credentialsSecret }}
+                  key: {{ $b.argocd.authTokenSecretKey }}
+                  optional: true
+            {{- end }}
+            {{- if $b.logbook.passwordSecretKey }}
+            - name: LOGBOOK_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.resourceNames.credentialsSecret }}
+                  key: {{ $b.logbook.passwordSecretKey }}
+                  optional: true
+            {{- end }}
+            {{- if $b.elastic.apiKeySecretKey }}
+            - name: ELASTIC_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.resourceNames.credentialsSecret }}
+                  key: {{ $b.elastic.apiKeySecretKey }}
+                  optional: true
+            {{- end }}
+          {{- if $b.documentation.persistence.enabled }}
+          volumeMounts:
+            - name: docs
+              mountPath: {{ $b.documentation.docsPath }}
+          {{- end }}
+          livenessProbe:
+            tcpSocket:
+              port: {{ .Values.argusMcp.service.port }}
+            initialDelaySeconds: 5
+            periodSeconds: 15
+          readinessProbe:
+            tcpSocket:
+              port: {{ .Values.argusMcp.service.port }}
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            {{- toYaml .Values.argusMcp.resources | nindent 12 }}
+      {{- if $b.documentation.persistence.enabled }}
+      volumes:
+        - name: docs
+          persistentVolumeClaim:
+            claimName: {{ include "argus.mcp.fullname" . }}-docs
+      {{- end }}
+{{- end }}
