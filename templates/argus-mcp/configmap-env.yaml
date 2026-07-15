@@ -94,11 +94,34 @@ data:
   {{- if $b.git.github.baseUrl }}
   GITHUB_BASE_URL: {{ $b.git.github.baseUrl | quote }}
   {{- end }}
-  {{- if $b.git.gitlab.baseUrl }}
-  GITLAB_BASE_URL: {{ $b.git.gitlab.baseUrl | quote }}
+
+  {{/*
+  In an epik8s deployment, .Values.giturl is the beamline's own deploy repo
+  (e.g. https://baltig.infn.it/lnf-da-control/epik8s-btf.git) -- epik8s-chart's
+  services.yaml injects it (with gitrev) into every service Application's
+  values automatically, same mechanism as http_proxy above. Auto-derive
+  GitLab's base URL and a default search repo from it so beamlines don't
+  have to hand-configure backends.git.gitlab/defaultRepos just to point
+  ARGUS at their own config repo -- explicit values here still win.
+  */}}
+  {{- $gitlabBaseUrl := $b.git.gitlab.baseUrl }}
+  {{- $giturlHost := "" }}
+  {{- if .Values.giturl }}
+  {{- $giturlHost = (urlParse .Values.giturl).host }}
   {{- end }}
-  {{- if $b.git.defaultRepos }}
-  GIT_DEFAULT_REPOS: {{ join "," $b.git.defaultRepos | quote }}
+  {{- if and (not $gitlabBaseUrl) .Values.giturl (ne $giturlHost "github.com") }}
+  {{- $gitlabBaseUrl = printf "%s://%s" (urlParse .Values.giturl).scheme $giturlHost }}
+  {{- end }}
+  {{- if $gitlabBaseUrl }}
+  GITLAB_BASE_URL: {{ $gitlabBaseUrl | quote }}
+  {{- end }}
+
+  {{- $defaultRepos := $b.git.defaultRepos }}
+  {{- if and (not $defaultRepos) .Values.giturl }}
+  {{- $defaultRepos = list .Values.giturl }}
+  {{- end }}
+  {{- if $defaultRepos }}
+  GIT_DEFAULT_REPOS: {{ join "," $defaultRepos | quote }}
   {{- end }}
 
   CACHE_DEVICE_TTL_SECONDS: {{ $b.cache.deviceTtlSeconds | quote }}
