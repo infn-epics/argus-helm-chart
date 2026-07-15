@@ -158,7 +158,12 @@ argusMcp:
     #   docker push <your-registry>/argus-mcp-server:<tag>
     repository: ""
     tag: "latest"
-    pullPolicy: IfNotPresent
+    # Always, not IfNotPresent: with a floating "latest" tag, IfNotPresent
+    # means a node with any image already cached under that tag will keep
+    # reusing it forever, even after a fresh build is pushed to the
+    # registry -- a pod restart (e.g. from a ConfigMap checksum change)
+    # looks like it picked up new code but silently didn't.
+    pullPolicy: Always
 
   replicaCount: 1
 
