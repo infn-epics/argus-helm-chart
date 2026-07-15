@@ -39,6 +39,17 @@ nameOverride: ""
 fullnameOverride: ""
 
 # -----------------------------------------------------------------------
+# Outbound HTTP proxy for argus-mcp's external calls (RAGFLOW, GitHub,
+# GitLab). Left blank by default. In an epik8s deployment these are
+# populated automatically from epicsConfiguration's http_proxy/https_proxy/
+# no_proxy -- epik8s-chart injects them into every service Application's
+# values (including this chart's), so nothing to set here in that case.
+# -----------------------------------------------------------------------
+http_proxy: ""
+https_proxy: ""
+no_proxy: ""
+
+# -----------------------------------------------------------------------
 # Passthrough into the upstream "librechat" subchart. Only the keys this
 # chart actively depends on are set here — everything else (ingress,
 # resources, autoscaling, mongodb/meilisearch/redis sizing, ...) uses the

@@ -20,6 +20,25 @@ data:
   ARGUS_LOG_LEVEL: {{ .Values.argusMcp.logging.level | quote }}
   ARGUS_LOG_JSON: {{ .Values.argusMcp.logging.json | quote }}
 
+  {{/*
+  Outbound HTTP proxy for external calls (RAGFLOW, GitHub, GitLab). In an
+  epik8s deployment these come pre-populated from epicsConfiguration's
+  http_proxy/https_proxy/no_proxy -- epik8s-chart's services.yaml injects
+  them into every service Application's values automatically (see
+  epik8s-chart/templates/services.yaml). httpx (used by every ARGUS REST
+  provider) honors these env vars itself via trust_env, so no code changes
+  are needed here -- just plumbing the values through.
+  */}}
+  {{- if .Values.http_proxy }}
+  HTTP_PROXY: {{ .Values.http_proxy | quote }}
+  {{- end }}
+  {{- if .Values.https_proxy }}
+  HTTPS_PROXY: {{ .Values.https_proxy | quote }}
+  {{- end }}
+  {{- if .Values.no_proxy }}
+  NO_PROXY: {{ .Values.no_proxy | quote }}
+  {{- end }}
+
   {{- if $b.epics.caAddrList }}
   EPICS_CA_ADDR_LIST: {{ $b.epics.caAddrList | quote }}
   {{- end }}
