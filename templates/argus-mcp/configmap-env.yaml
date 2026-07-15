@@ -68,6 +68,9 @@ data:
   {{- if $b.ragflow.datasetIds }}
   RAGFLOW_DATASET_IDS: {{ $b.ragflow.datasetIds | quote }}
   {{- end }}
+  {{- if $b.ragflow.timeoutSeconds }}
+  RAGFLOW_TIMEOUT_SECONDS: {{ $b.ragflow.timeoutSeconds | quote }}
+  {{- end }}
 
   {{- if $b.git.github.baseUrl }}
   GITHUB_BASE_URL: {{ $b.git.github.baseUrl | quote }}

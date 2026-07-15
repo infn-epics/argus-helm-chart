@@ -230,8 +230,9 @@ argusMcp:
       baseUrl: ""
       apiKeySecretKey: "RAGFLOW_API_KEY"
       # Comma-separated dataset IDs to restrict search to. Left empty,
-      # search covers every dataset the API key can access.
+      # search covers every dataset the API key can access (slower).
       datasetIds: ""
+      timeoutSeconds: 20
 
     # Read-only: config history (git log/diff on tracked YAML files) and
     # issue/ticket search across GitHub and self-hosted GitLab. No issue
