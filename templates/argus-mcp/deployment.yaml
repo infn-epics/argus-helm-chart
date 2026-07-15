@@ -76,6 +76,30 @@ spec:
                   key: {{ $b.elastic.apiKeySecretKey }}
                   optional: true
             {{- end }}
+            {{- if $b.git.github.tokenSecretKey }}
+            - name: GITHUB_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.resourceNames.credentialsSecret }}
+                  key: {{ $b.git.github.tokenSecretKey }}
+                  optional: true
+            {{- end }}
+            {{- if $b.git.gitlab.tokenSecretKey }}
+            - name: GITLAB_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.resourceNames.credentialsSecret }}
+                  key: {{ $b.git.gitlab.tokenSecretKey }}
+                  optional: true
+            {{- end }}
+            {{- if $b.ragflow.apiKeySecretKey }}
+            - name: RAGFLOW_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.resourceNames.credentialsSecret }}
+                  key: {{ $b.ragflow.apiKeySecretKey }}
+                  optional: true
+            {{- end }}
           {{- if $b.documentation.persistence.enabled }}
           volumeMounts:
             - name: docs

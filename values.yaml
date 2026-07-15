@@ -210,6 +210,11 @@ argusMcp:
       defaultIndex: "argus-logs"
 
     documentation:
+      # "local" indexes docsPath with TF-IDF; "ragflow" delegates retrieval
+      # to an existing RAGFLOW deployment instead (see ragflow: below). Both
+      # implement the same search_documentation tool contract, so switching
+      # is a config-only change.
+      backend: "local" # local | ragflow
       docsPath: "/data/docs"
       indexPath: "/data/docs/.index"
       persistence:
@@ -217,6 +222,33 @@ argusMcp:
         size: "1Gi"
         storageClassName: ""
         accessMode: "ReadWriteOnce"
+
+    # Only used when documentation.backend is "ragflow". ARGUS calls
+    # RAGFLOW's own REST retrieval API (POST /api/v1/retrieval) directly —
+    # not RAGFLOW's separate MCP bridge server.
+    ragflow:
+      baseUrl: ""
+      apiKeySecretKey: "RAGFLOW_API_KEY"
+      # Comma-separated dataset IDs to restrict search to. Left empty,
+      # search covers every dataset the API key can access.
+      datasetIds: ""
+
+    # Read-only: config history (git log/diff on tracked YAML files) and
+    # issue/ticket search across GitHub and self-hosted GitLab. No issue
+    # creation, no commenting, no commits — ARGUS never gets write access.
+    git:
+      github:
+        baseUrl: "https://api.github.com"
+        tokenSecretKey: "GITHUB_TOKEN"
+      gitlab:
+        baseUrl: ""                    # e.g. https://baltig.infn.it
+        tokenSecretKey: "GITLAB_TOKEN"
+      # Repos search_knowledge_base searches when a call doesn't list its
+      # own — plain git URLs, same charturl/giturl values already used
+      # elsewhere in your epik8s deploy/values.yaml.
+      defaultRepos: []
+      #  - "https://github.com/infn-epics/ioc-chart.git"
+      #  - "https://baltig.infn.it/lnf-da-control/epik8s-btf.git"
 
     cache:
       deviceTtlSeconds: 300

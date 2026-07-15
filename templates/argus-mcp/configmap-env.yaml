@@ -58,8 +58,26 @@ data:
   {{- end }}
   ELASTIC_DEFAULT_INDEX: {{ $b.elastic.defaultIndex | quote }}
 
+  DOCUMENTATION_BACKEND: {{ $b.documentation.backend | quote }}
   DOCS_PATH: {{ $b.documentation.docsPath | quote }}
   DOCS_INDEX_PATH: {{ $b.documentation.indexPath | quote }}
+
+  {{- if $b.ragflow.baseUrl }}
+  RAGFLOW_BASE_URL: {{ $b.ragflow.baseUrl | quote }}
+  {{- end }}
+  {{- if $b.ragflow.datasetIds }}
+  RAGFLOW_DATASET_IDS: {{ $b.ragflow.datasetIds | quote }}
+  {{- end }}
+
+  {{- if $b.git.github.baseUrl }}
+  GITHUB_BASE_URL: {{ $b.git.github.baseUrl | quote }}
+  {{- end }}
+  {{- if $b.git.gitlab.baseUrl }}
+  GITLAB_BASE_URL: {{ $b.git.gitlab.baseUrl | quote }}
+  {{- end }}
+  {{- if $b.git.defaultRepos }}
+  GIT_DEFAULT_REPOS: {{ join "," $b.git.defaultRepos | quote }}
+  {{- end }}
 
   CACHE_DEVICE_TTL_SECONDS: {{ $b.cache.deviceTtlSeconds | quote }}
   CACHE_CHANNELFINDER_TTL_SECONDS: {{ $b.cache.channelfinderTtlSeconds | quote }}
