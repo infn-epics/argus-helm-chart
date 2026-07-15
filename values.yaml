@@ -266,6 +266,10 @@ argusMcp:
       deviceTtlSeconds: 300
       channelfinderTtlSeconds: 120
       kubernetesTtlSeconds: 30
+      # get_config_history/get_file results — much longer-lived than the
+      # live-data caches above, since config files change on the order of
+      # days, not seconds, and every miss is a real GitHub/GitLab API call.
+      knowledgeTtlSeconds: 600
 
 # -----------------------------------------------------------------------
 # Authentication. LibreChat supports local email/password login and

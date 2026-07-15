@@ -127,4 +127,5 @@ data:
   CACHE_DEVICE_TTL_SECONDS: {{ $b.cache.deviceTtlSeconds | quote }}
   CACHE_CHANNELFINDER_TTL_SECONDS: {{ $b.cache.channelfinderTtlSeconds | quote }}
   CACHE_KUBERNETES_TTL_SECONDS: {{ $b.cache.kubernetesTtlSeconds | quote }}
+  CACHE_KNOWLEDGE_TTL_SECONDS: {{ $b.cache.knowledgeTtlSeconds | quote }}
 {{- end }}
