@@ -81,6 +81,52 @@ A list; each entry becomes one `endpoints.custom[]` block in the rendered
 | `models.fetch` | no | let LibreChat query the provider's `/models` endpoint |
 | `titleConvo`, `titleModel`, `modelDisplayLabel`, `iconURL`, `headers` | no | see [LibreChat's custom endpoint schema](https://www.librechat.ai/docs/configuration/librechat_yaml/object_structure/custom_endpoint) |
 
+### `vllmService.*` — optional self-hosted vLLM
+
+Deploys vLLM serving an open-weight model directly on a Kubernetes GPU
+node, disabled by default. It's a **facility-wide singleton**: it lives in
+its own dedicated namespace (`vllmService.namespace`, independent of this
+release's own namespace) with a fixed resource name, so enable it on
+exactly **one** `argus-helm-chart` release per cluster/GPU — every other
+beamline's release should leave it disabled and instead add an
+`llm.endpoints` entry pointing at
+`http://argus-vllm.<vllmService.namespace>.svc.cluster.local:<service.port>/v1`.
+
+```yaml
+vllmService:
+  enabled: true
+  namespace: "ai-platform"
+  model: "Qwen/Qwen2.5-3B-Instruct"
+  servedModelName: "llama3-8b"
+  nodeSelector:
+    hostname: "" # blank = any node with the GPU-present label; set to pin to one node
+```
+
+When enabled with `registerAsLlmEndpoint: true` (the default), it's added
+to `llm.endpoints` automatically — no need to hand-write a matching entry
+— and `secrets.data.VLLM_API_KEY` defaults to `"EMPTY"` (vLLM's own
+OpenAI-client convention placeholder for "no server-side auth", not a real
+secret) unless you've already set that key yourself.
+
+`enableAutoToolChoice`/`toolCallParser` (default: `hermes`, for Qwen-family
+models) matter for any MCP-tool-attached agent: LibreChat sends the full
+tool schema list on every request once tools are attached, and vLLM
+rejects that with a 400 unless tool calling is explicitly enabled server-
+side — confirmed against a real deployment, not a hypothetical. Match
+`toolCallParser` to whatever model family you set `model` to; see
+[vLLM's tool calling docs](https://docs.vllm.ai/en/latest/features/tool_calling.html)
+for supported parsers.
+
+`maxModelLen`/`maxNumBatchedTokens` must satisfy `maxNumBatchedTokens >=
+maxModelLen` or vLLM refuses to start — confirmed live: a mismatch here
+crash-loops the pod with a clear config-validation error, not an OOM. A
+larger `maxModelLen` lets the model see more MCP tool-result data (e.g. a
+big `list_beamline_devices` response) without a hard 400, but a small
+model's actual output quality can noticeably degrade well before its
+advertised max context — also confirmed live, not a hypothetical — so
+raising this is not a substitute for keeping tool responses reasonably
+sized.
+
 ### `mcpServers` — additional MCP servers
 
 A map; each **enabled** entry is merged verbatim into `mcpServers.<key>`

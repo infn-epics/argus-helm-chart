@@ -25,9 +25,14 @@ data:
       socialLogins: ["openid"]
     {{- end }}
 
+    {{- $llmEndpoints := .Values.llm.endpoints }}
+    {{- if and .Values.vllmService.enabled .Values.vllmService.registerAsLlmEndpoint }}
+    {{- $vllmEndpoint := dict "name" .Values.vllmService.llmEndpointName "apiKeySecretKey" .Values.vllmService.apiKeySecretKey "baseURL" (include "argus.vllm.baseUrl" .) "modelDisplayLabel" .Values.vllmService.llmEndpointName "models" (dict "default" (list .Values.vllmService.servedModelName) "fetch" false) }}
+    {{- $llmEndpoints = append $llmEndpoints $vllmEndpoint }}
+    {{- end }}
     endpoints:
       custom:
-        {{- range .Values.llm.endpoints }}
+        {{- range $llmEndpoints }}
         - name: {{ .name | quote }}
           {{- if .provider }}
           provider: {{ .provider | quote }}

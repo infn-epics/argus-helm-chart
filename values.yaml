@@ -134,6 +134,115 @@ llm:
       modelDisplayLabel: "Claude"
 
 # -----------------------------------------------------------------------
+# Optional: deploy vLLM serving an open-weight model directly on a
+# Kubernetes GPU node, in its own dedicated namespace shared across
+# beamlines/releases (independent of this release's own namespace) —
+# a facility-wide singleton, not a per-beamline duplicate. Disabled by
+# default: most sites either have no spare GPU, or already run a shared
+# vLLM elsewhere (in which case just point llm.endpoints at that URL
+# instead of enabling this).
+#
+# Enable this on exactly ONE argus-helm-chart release per cluster/GPU.
+# Every other beamline's release should leave this disabled and instead
+# add an llm.endpoints entry pointing at
+# http://argus-vllm.<vllmService.namespace>.svc.cluster.local:<port>/v1
+# (same URL this chart computes for its own auto-registered entry below).
+# -----------------------------------------------------------------------
+vllmService:
+  enabled: false
+  # Dedicated namespace this Service/Deployment/ConfigMap/PVC are created
+  # in -- deliberately independent of .Release.Namespace, since this is
+  # meant to be reachable from any beamline's own release, not just the
+  # one that happens to enable it. Created automatically unless
+  # createNamespace is false (e.g. it already exists).
+  namespace: "ai-platform"
+  createNamespace: true
+
+  image:
+    repository: "vllm/vllm-openai"
+    tag: "v0.6.3"
+    pullPolicy: "IfNotPresent"
+
+  # Hugging Face model id (downloaded on first start into modelCache
+  # below) and the OpenAI-API-facing name clients request completions
+  # under -- these can differ, e.g. serving Qwen2.5-3B-Instruct as
+  # "llama3-8b" for client-side naming convenience.
+  model: "Qwen/Qwen2.5-3B-Instruct"
+  servedModelName: "llama3-8b"
+
+  # Required for any model an MCP-enabled LibreChat agent (e.g. ARGUS)
+  # will use -- LibreChat sends the full MCP tool schema list as `tools`
+  # on every request once tools are attached, and vLLM 400s on that
+  # unless tool calling is explicitly enabled. toolCallParser must match
+  # the served model family (e.g. "hermes" for Qwen-family models,
+  # "llama3_json" for Llama-3-family) -- see vLLM's docs for the full
+  # list of supported parsers and which model families they cover.
+  enableAutoToolChoice: true
+  toolCallParser: "hermes"
+
+  # Larger contexts let the model see more MCP tool-result data (e.g. a
+  # big list_beamline_devices response) without a hard 400, but a small
+  # model's actual output quality can degrade well before its advertised
+  # max -- raising this is not a substitute for keeping tool responses
+  # reasonably sized. maxNumBatchedTokens must be >= maxModelLen or vLLM
+  # refuses to start (confirmed live: a mismatch here crash-loops the pod
+  # with a clear "max_num_batched_tokens (N) is smaller than
+  # max_model_len (M)" error, not an OOM).
+  maxModelLen: 16384
+  maxNumBatchedTokens: 16384
+  gpuMemoryUtilization: 0.92
+  maxNumSeqs: 64
+  enablePrefixCaching: true
+
+  replicaCount: 1
+
+  resources:
+    limits:
+      cpu: "8"
+      memory: "24Gi"
+      nvidia.com/gpu: "1"
+    requests:
+      cpu: "4"
+      memory: "16Gi"
+      nvidia.com/gpu: "1"
+
+  # Target GPU node(s). Leave hostname blank to let the scheduler pick
+  # among any node carrying the gpuPresentLabel; set hostname to pin to
+  # one specific node (useful with a single-GPU cluster, or to keep this
+  # off a GPU node shared with other latency-sensitive workloads).
+  nodeSelector:
+    hostname: ""
+    gpuPresentLabel: "nvidia.com/gpu.present"
+
+  tolerations:
+    - key: "nvidia.com/gpu"
+      operator: "Exists"
+      effect: "NoSchedule"
+
+  modelCache:
+    # Leave blank to have this chart create the PVC below; set to reuse
+    # an existing claim (e.g. a model cache already populated outside
+    # this release) instead.
+    existingClaim: ""
+    size: "50Gi"
+    storageClassName: ""
+    accessMode: "ReadWriteOnce"
+
+  service:
+    port: 8000
+
+  # Auto-adds this vLLM instance to llm.endpoints above with zero extra
+  # config -- no need to hand-write a matching endpoint entry. The real
+  # value behind apiKeySecretKey is expected to be the literal string
+  # "EMPTY" (vLLM's own OpenAI-client convention placeholder when no
+  # server-side auth is configured, not an actual secret) -- this chart
+  # supplies that default into secrets.data automatically unless already
+  # set there explicitly.
+  registerAsLlmEndpoint: true
+  llmEndpointName: "GPU-vLLM"
+  apiKeySecretKey: "VLLM_API_KEY"
+
+# -----------------------------------------------------------------------
 # Generic, extensible MCP servers -> mcpServers.<key> in librechat.yaml.
 # The ARGUS entry is composed separately (see argusMcp below) and merged
 # in automatically when argusMcp.enabled is true; anything you add here

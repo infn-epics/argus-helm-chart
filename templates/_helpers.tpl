@@ -71,6 +71,41 @@ Only meaningful when argusMcp.rbac.clusterWide is false.
 {{- end -}}
 
 {{/*
+vLLM service name/namespace helpers. Fixed (non-release-templated) name,
+same reasoning as resourceNames.configYaml/credentialsSecret at the top of
+values.yaml: this is meant to be a facility-wide singleton, installed by
+exactly one argus-helm-chart release into its own dedicated namespace
+(vllmService.namespace, independent of .Release.Namespace), then referenced
+by every other beamline's own llm.endpoints via its Service DNS name.
+*/}}
+{{- define "argus.vllm.fullname" -}}
+argus-vllm
+{{- end -}}
+
+{{- define "argus.vllm.namespace" -}}
+{{- .Values.vllmService.namespace | default .Release.Namespace -}}
+{{- end -}}
+
+{{- define "argus.vllm.selectorLabels" -}}
+app.kubernetes.io/name: argus-vllm
+{{- end -}}
+
+{{- define "argus.vllm.labels" -}}
+helm.sh/chart: {{ printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" }}
+{{ include "argus.vllm.selectorLabels" . }}
+app.kubernetes.io/managed-by: {{ .Release.Service }}
+app.kubernetes.io/component: vllm
+{{- end -}}
+
+{{/*
+The vLLM Service's in-cluster base URL, usable directly as an
+llm.endpoints[].baseURL.
+*/}}
+{{- define "argus.vllm.baseUrl" -}}
+{{- printf "http://%s.%s.svc.cluster.local:%v/v1" (include "argus.vllm.fullname" .) (include "argus.vllm.namespace" .) .Values.vllmService.service.port -}}
+{{- end -}}
+
+{{/*
 Reuse an already-deployed value for a Secret key across `helm upgrade`
 instead of regenerating it every time (which would force-logout every
 LibreChat session and could leave previously-encrypted stored credentials
