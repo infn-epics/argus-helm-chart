@@ -50,6 +50,14 @@ https_proxy: ""
 no_proxy: ""
 
 # -----------------------------------------------------------------------
+# The beamline name (e.g. "BTF"). Left blank by default. In an epik8s
+# deployment this is populated automatically the same way as http_proxy
+# above -- used to derive a default RAGFLOW dataset name
+# (argusMcp.backends.ragflow.datasetNames) when that's left unset.
+# -----------------------------------------------------------------------
+beamline: ""
+
+# -----------------------------------------------------------------------
 # Passthrough into the upstream "librechat" subchart. Only the keys this
 # chart actively depends on are set here — everything else (ingress,
 # resources, autoscaling, mongodb/meilisearch/redis sizing, ...) uses the
@@ -215,6 +223,12 @@ argusMcp:
       serverUrl: ""
       authTokenSecretKey: "ARGOCD_AUTH_TOKEN"
 
+    # Phoebus save-and-restore. Read-only (search/browse configurations and
+    # snapshots) -- restore/apply is not implemented, see argus-mcp-server's
+    # docs/providers.md for why. No auth needed for these read endpoints.
+    saverestore:
+      baseUrl: ""
+
     logbook:
       baseUrl: ""
       username: ""
@@ -245,9 +259,20 @@ argusMcp:
     ragflow:
       baseUrl: ""
       apiKeySecretKey: "RAGFLOW_API_KEY"
-      # Comma-separated dataset IDs to restrict search to. Left empty,
-      # search covers every dataset the API key can access (slower).
+      # Comma-separated exact dataset UUIDs, if already known. Prefer
+      # datasetNames below instead where possible -- some RAGFLOW
+      # deployments *require* at least one dataset (by id or resolved
+      # name), confirmed live against INFN's instance, so leaving both
+      # blank isn't a safe "search everything" fallback everywhere.
       datasetIds: ""
+      # Comma-separated case-insensitive substrings matched against dataset
+      # names and resolved to ids at query time (e.g. "Controlli" matches a
+      # dataset named "Controlli-KB"). Left blank in an epik8s deployment
+      # (.Values.beamline set), defaults to "Controlli,<beamline>" so every
+      # beamline gets the shared Controlli KB plus its own dataset
+      # automatically, once one exists with that name -- see
+      # configmap-env.yaml. Set explicitly here to override that default.
+      datasetNames: ""
       timeoutSeconds: 20
 
     # Read-only: config history (git log/diff on tracked YAML files) and

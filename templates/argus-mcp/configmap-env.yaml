@@ -65,6 +65,10 @@ data:
   ARGOCD_SERVER_URL: {{ $b.argocd.serverUrl | quote }}
   {{- end }}
 
+  {{- if $b.saverestore.baseUrl }}
+  SAVERESTORE_BASE_URL: {{ $b.saverestore.baseUrl | quote }}
+  {{- end }}
+
   {{- if $b.logbook.baseUrl }}
   LOGBOOK_BASE_URL: {{ $b.logbook.baseUrl | quote }}
   {{- end }}
@@ -86,6 +90,20 @@ data:
   {{- end }}
   {{- if $b.ragflow.datasetIds }}
   RAGFLOW_DATASET_IDS: {{ $b.ragflow.datasetIds | quote }}
+  {{- end }}
+  {{/*
+  Default dataset names to the shared "Controlli" KB plus this beamline's
+  own dataset (once one exists with that name) -- same auto-derivation
+  pattern as GITLAB_BASE_URL/GIT_DEFAULT_REPOS below, driven by
+  .Values.beamline (auto-injected by epik8s-chart). Explicit
+  backends.ragflow.datasetNames always wins.
+  */}}
+  {{- $datasetNames := $b.ragflow.datasetNames }}
+  {{- if and (not $datasetNames) .Values.beamline }}
+  {{- $datasetNames = printf "Controlli,%s" .Values.beamline }}
+  {{- end }}
+  {{- if $datasetNames }}
+  RAGFLOW_DATASET_NAMES: {{ $datasetNames | quote }}
   {{- end }}
   {{- if $b.ragflow.timeoutSeconds }}
   RAGFLOW_TIMEOUT_SECONDS: {{ $b.ragflow.timeoutSeconds | quote }}
