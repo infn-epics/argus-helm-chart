@@ -1,0 +1,13 @@
+{{- if .Values.vllmService.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "argus.vllm.fullname" . }}-config
+  namespace: {{ include "argus.vllm.namespace" . }}
+  labels:
+    {{- include "argus.vllm.labels" . | nindent 4 }}
+data:
+  model-name: {{ .Values.vllmService.model | quote }}
+  max-model-len: {{ .Values.vllmService.maxModelLen | quote }}
+  gpu-memory-utilization: {{ .Values.vllmService.gpuMemoryUtilization | quote }}
+{{- end }}

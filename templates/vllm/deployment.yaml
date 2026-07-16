@@ -1,0 +1,146 @@
+{{/*
+Launch args/env below mirror a real, live-verified vLLM OpenAI-compatible
+server deployment (confirmed against INFN's own ai-platform vllm
+Deployment): entrypoint, ConfigMap-driven model-name/max-model-len/
+gpu-memory-utilization, HF_HOME on the model cache volume, and the
+--enable-auto-tool-choice/--tool-call-parser flags required before any
+MCP-tool-attached LibreChat request (which always sends a `tools` array)
+will be accepted rather than rejected with a 400.
+*/}}
+{{- if .Values.vllmService.enabled }}
+{{- $v := .Values.vllmService }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "argus.vllm.fullname" . }}
+  namespace: {{ include "argus.vllm.namespace" . }}
+  labels:
+    {{- include "argus.vllm.labels" . | nindent 4 }}
+spec:
+  replicas: {{ $v.replicaCount }}
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      {{- include "argus.vllm.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        checksum/vllm-config: {{ include (print $.Template.BasePath "/vllm/configmap.yaml") . | sha256sum }}
+      labels:
+        {{- include "argus.vllm.labels" . | nindent 8 }}
+    spec:
+      {{- if or $v.nodeSelector.hostname $v.nodeSelector.gpuPresentLabel }}
+      nodeSelector:
+        {{- if $v.nodeSelector.hostname }}
+        kubernetes.io/hostname: {{ $v.nodeSelector.hostname | quote }}
+        {{- end }}
+        {{- if $v.nodeSelector.gpuPresentLabel }}
+        {{ $v.nodeSelector.gpuPresentLabel }}: "true"
+        {{- end }}
+      {{- end }}
+      {{- if $v.tolerations }}
+      tolerations:
+        {{- toYaml $v.tolerations | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: vllm
+          image: "{{ $v.image.repository }}:{{ $v.image.tag }}"
+          imagePullPolicy: {{ $v.image.pullPolicy }}
+          command: ["python3", "-m", "vllm.entrypoints.openai.api_server"]
+          args:
+            - "--host"
+            - "0.0.0.0"
+            - "--port"
+            - {{ $v.service.port | quote }}
+            - "--model"
+            - "$(MODEL_NAME)"
+            - "--served-model-name"
+            - {{ $v.servedModelName | quote }}
+            - "--download-dir"
+            - "/models"
+            - "--max-model-len"
+            - "$(MAX_MODEL_LEN)"
+            - "--gpu-memory-utilization"
+            - "$(GPU_MEMORY_UTILIZATION)"
+            - "--max-num-seqs"
+            - {{ $v.maxNumSeqs | quote }}
+            - "--max-num-batched-tokens"
+            - {{ $v.maxNumBatchedTokens | quote }}
+            {{- if $v.enablePrefixCaching }}
+            - "--enable-prefix-caching"
+            {{- end }}
+            {{- if $v.enableAutoToolChoice }}
+            - "--enable-auto-tool-choice"
+            - "--tool-call-parser"
+            - {{ $v.toolCallParser | quote }}
+            {{- end }}
+          ports:
+            - name: http
+              containerPort: {{ $v.service.port }}
+              protocol: TCP
+          env:
+            - name: MODEL_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "argus.vllm.fullname" . }}-config
+                  key: model-name
+            - name: MAX_MODEL_LEN
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "argus.vllm.fullname" . }}-config
+                  key: max-model-len
+            - name: GPU_MEMORY_UTILIZATION
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "argus.vllm.fullname" . }}-config
+                  key: gpu-memory-utilization
+            - name: HF_HOME
+              value: "/models/hf"
+            {{- if $.Values.http_proxy }}
+            - name: HTTP_PROXY
+              value: {{ $.Values.http_proxy | quote }}
+            - name: http_proxy
+              value: {{ $.Values.http_proxy | quote }}
+            {{- end }}
+            {{- if $.Values.https_proxy }}
+            - name: HTTPS_PROXY
+              value: {{ $.Values.https_proxy | quote }}
+            - name: https_proxy
+              value: {{ $.Values.https_proxy | quote }}
+            {{- end }}
+            {{- if $.Values.no_proxy }}
+            - name: NO_PROXY
+              value: {{ $.Values.no_proxy | quote }}
+            - name: no_proxy
+              value: {{ $.Values.no_proxy | quote }}
+            {{- end }}
+          volumeMounts:
+            - name: model-cache
+              mountPath: /models
+          resources:
+            {{- toYaml $v.resources | nindent 12 }}
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 20
+            periodSeconds: 10
+          startupProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            failureThreshold: 180
+      volumes:
+        - name: model-cache
+          persistentVolumeClaim:
+            claimName: {{ $v.modelCache.existingClaim | default (printf "%s-model-cache" (include "argus.vllm.fullname" .)) }}
+{{- end }}

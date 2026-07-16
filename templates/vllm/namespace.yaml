@@ -1,0 +1,10 @@
+{{- if and .Values.vllmService.enabled .Values.vllmService.createNamespace }}
+{{- if ne (include "argus.vllm.namespace" .) .Release.Namespace }}
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ include "argus.vllm.namespace" . }}
+  labels:
+    {{- include "argus.vllm.labels" . | nindent 4 }}
+{{- end }}
+{{- end }}

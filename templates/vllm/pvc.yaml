@@ -1,0 +1,18 @@
+{{- if and .Values.vllmService.enabled (not .Values.vllmService.modelCache.existingClaim) }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "argus.vllm.fullname" . }}-model-cache
+  namespace: {{ include "argus.vllm.namespace" . }}
+  labels:
+    {{- include "argus.vllm.labels" . | nindent 4 }}
+spec:
+  accessModes:
+    - {{ .Values.vllmService.modelCache.accessMode }}
+  {{- if .Values.vllmService.modelCache.storageClassName }}
+  storageClassName: {{ .Values.vllmService.modelCache.storageClassName }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.vllmService.modelCache.size }}
+{{- end }}
