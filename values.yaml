@@ -63,8 +63,16 @@ beamline: ""
 # resources, autoscaling, mongodb/meilisearch/redis sizing, ...) uses the
 # subchart's own sensible defaults and can be overridden the normal Helm
 # way, e.g. `librechat.ingress.hosts[0].host=chat.example.org`.
+#
+# `enabled` (default true) gates the whole subchart via Chart.yaml's
+# `condition: librechat.enabled` — set false to install ARGUS MCP only
+# (Deployment/Service/RBAC under templates/argus-mcp/, argusMcp.enabled
+# still applies independently) with no LibreChat/MongoDB/Meilisearch at
+# all, e.g. when this release's ARGUS MCP is meant to be registered into
+# a centralized LibreChat deployed elsewhere instead of running its own.
 # -----------------------------------------------------------------------
 librechat:
+  enabled: true
   ingress:
     enabled: true
     hosts:
@@ -347,6 +355,14 @@ argusMcp:
       url: ""
       apiKeySecretKey: "ELASTIC_API_KEY"
       defaultIndex: "argus-logs"
+
+    # Kubernetes pod log history (distinct from elastic: above -- Loki holds
+    # raw pod/container logs shipped by the platform's log-ingestion pipeline,
+    # not the control-critical application logs elastic: points at). No auth
+    # on this cluster's Loki, so no secret key needed here.
+    loki:
+      baseUrl: ""
+      defaultLimit: 200
 
     documentation:
       # "local" indexes docsPath with TF-IDF; "ragflow" delegates retrieval

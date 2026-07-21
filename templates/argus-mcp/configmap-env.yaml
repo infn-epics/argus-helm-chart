@@ -81,6 +81,11 @@ data:
   {{- end }}
   ELASTIC_DEFAULT_INDEX: {{ $b.elastic.defaultIndex | quote }}
 
+  {{- if $b.loki.baseUrl }}
+  LOKI_BASE_URL: {{ $b.loki.baseUrl | quote }}
+  {{- end }}
+  LOKI_DEFAULT_LIMIT: {{ $b.loki.defaultLimit | quote }}
+
   DOCUMENTATION_BACKEND: {{ $b.documentation.backend | quote }}
   DOCS_PATH: {{ $b.documentation.docsPath | quote }}
   DOCS_INDEX_PATH: {{ $b.documentation.indexPath | quote }}

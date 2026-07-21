@@ -9,6 +9,7 @@ API keys and other secrets are NEVER inlined here — every sensitive value
 is referenced as `${VAR_NAME}`, resolved by LibreChat's own process from
 the env vars supplied by templates/librechat-secret.yaml.
 */}}
+{{- if .Values.librechat.enabled }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -102,3 +103,4 @@ data:
         - {{ $host | quote }}
         {{- end }}
         {{- end }}
+{{- end }}
