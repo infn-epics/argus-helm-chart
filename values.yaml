@@ -416,6 +416,13 @@ argusMcp:
       defaultRepos: []
       #  - "https://github.com/infn-epics/ioc-chart.git"
       #  - "https://baltig.infn.it/lnf-da-control/epik8s-btf.git"
+      # Git ref (branch/tag) get_config_history/list_beamline_devices resolve
+      # "HEAD" to when reading a beamline's own config repo. In an epik8s
+      # deployment this auto-derives from .Values.gitrev (see
+      # configmap-env.yaml) -- the same field the beamline's own IOC
+      # git-init sidecars are pinned to, which isn't always "main" (e.g. a
+      # beamline deployed from a "devel" branch). Explicit value here wins.
+      defaultRef: ""
 
     cache:
       deviceTtlSeconds: 300

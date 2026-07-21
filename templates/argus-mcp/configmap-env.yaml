@@ -147,6 +147,21 @@ data:
   GIT_DEFAULT_REPOS: {{ join "," $defaultRepos | quote }}
   {{- end }}
 
+  {{/*
+  Same auto-derivation as GIT_DEFAULT_REPOS above, but for the branch/tag to
+  read it at -- .Values.gitrev is the beamline's own pinned ref (not always
+  "main"/the repo's default branch, e.g. euaps deploys from "devel"), so
+  falling back to git's own bare "HEAD" here would silently read the wrong
+  branch's config for any beamline pinned to a non-default one.
+  */}}
+  {{- $defaultRef := $b.git.defaultRef }}
+  {{- if and (not $defaultRef) .Values.gitrev }}
+  {{- $defaultRef = .Values.gitrev }}
+  {{- end }}
+  {{- if $defaultRef }}
+  GIT_DEFAULT_REF: {{ $defaultRef | quote }}
+  {{- end }}
+
   CACHE_DEVICE_TTL_SECONDS: {{ $b.cache.deviceTtlSeconds | quote }}
   CACHE_CHANNELFINDER_TTL_SECONDS: {{ $b.cache.channelfinderTtlSeconds | quote }}
   CACHE_KUBERNETES_TTL_SECONDS: {{ $b.cache.kubernetesTtlSeconds | quote }}
