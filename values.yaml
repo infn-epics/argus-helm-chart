@@ -104,6 +104,15 @@ librechat:
     # `secrets.data` / `auth.*` below for anything auth.mode-dependent —
     # this is only an escape hatch for advanced static overrides.
     configEnv: {}
+    #  LANGFUSE_BASE_URL: "https://langfuse.k8sda.lnf.infn.it" # self-hosted
+    #  Langfuse instance (epik8s-platform's "langfuse" domain, if deployed) —
+    #  LANGFUSE_PUBLIC_KEY/LANGFUSE_SECRET_KEY (the credentials, not this
+    #  URL) go in secrets.data below instead, since they're sensitive and
+    #  can only be generated from Langfuse's own UI after first login —
+    #  there's no way to pre-populate them here. Enables LibreChat's native
+    #  per-chat-turn tracing + feedback-as-scores; see epik8s-platform's
+    #  README.md "Observability: Langfuse" for the full picture, including
+    #  why this alone doesn't capture MCP tool-call spans.
 
   global:
     librechat:
@@ -264,6 +273,23 @@ mcpServers:
     url: "http://ragflow-mcp.ragflow.svc.cluster.local:9382/mcp"
     headers:
       Authorization: "Bearer ${RAGFLOW_API_KEY}" # RAGFLOW_API_KEY -> secrets.data
+    chatMenu: true
+  langfuse:
+    enabled: false # example only — Langfuse isn't deployed by this chart,
+    # see epik8s-platform's "langfuse" domain. Official Langfuse MCP server,
+    # built into langfuse-web itself (no separate deployment) at
+    # /api/public/mcp — query traces/observations/sessions/scores/analytics
+    # from LibreChat directly, e.g. "show me tool calls in conversations
+    # rated thumbs-down this week". Authenticates with HTTP Basic Auth over
+    # the same LANGFUSE_PUBLIC_KEY/LANGFUSE_SECRET_KEY pair used for tracing
+    # above — LibreChat's header placeholders can't compute a Base64
+    # encoding inline, so pre-compute it once and store the whole header
+    # value as a secret: `echo -n "$LANGFUSE_PUBLIC_KEY:$LANGFUSE_SECRET_KEY"
+    # | base64` -> secrets.data.LANGFUSE_MCP_AUTH_HEADER: "Basic <result>"
+    type: "streamable-http"
+    url: "https://langfuse.k8sda.lnf.infn.it/api/public/mcp"
+    headers:
+      Authorization: "${LANGFUSE_MCP_AUTH_HEADER}"
     chatMenu: true
 
 # -----------------------------------------------------------------------
@@ -481,3 +507,6 @@ secrets:
   #  ELASTIC_API_KEY: "..."
   #  OPENID_CLIENT_SECRET: "..."
   #  RAGFLOW_API_KEY: "..."
+  #  LANGFUSE_PUBLIC_KEY: "pk-lf-..." # generated from the Langfuse UI, see
+  #  LANGFUSE_SECRET_KEY: "sk-lf-..." # librechat.librechat.configEnv above
+  #  LANGFUSE_MCP_AUTH_HEADER: "Basic ..." # see mcpServers.langfuse above

@@ -74,6 +74,19 @@ data:
         chatMenu: true
         title: "ARGUS"
         description: "Accelerator control-room operations: PVs, devices, diagnostics, IOCs, history, documentation."
+        {{/*
+        Freshly resolved before every individual tool call (not just once per
+        SSE connection) per LibreChat's own docs -- lets argus-mcp-server tie
+        its own tool-call logs (see argus/mcp_server/server.py's
+        request_context header extraction) back to the exact LibreChat
+        conversation/message/user that triggered them. See
+        epik8s-platform's README.md "Observability: Langfuse" for how this
+        feeds Loki-side debugging.
+        */}}
+        headers:
+          X-Librechat-Conversation-Id: "{{"{{"}}LIBRECHAT_BODY_CONVERSATIONID{{"}}"}}"
+          X-Librechat-Message-Id: "{{"{{"}}LIBRECHAT_BODY_MESSAGEID{{"}}"}}"
+          X-Librechat-User-Id: "{{"{{"}}LIBRECHAT_USER_ID{{"}}"}}"
       {{- end }}
       {{- range $name, $server := .Values.mcpServers }}
       {{- if $server.enabled }}
