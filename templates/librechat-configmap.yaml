@@ -75,18 +75,17 @@ data:
         title: "ARGUS"
         description: "Accelerator control-room operations: PVs, devices, diagnostics, IOCs, history, documentation."
         {{/*
-        Freshly resolved before every individual tool call (not just once per
-        SSE connection) per LibreChat's own docs -- lets argus-mcp-server tie
-        its own tool-call logs (see argus/mcp_server/server.py's
-        request_context header extraction) back to the exact LibreChat
-        conversation/message/user that triggered them. See
-        epik8s-platform's README.md "Observability: Langfuse" for how this
-        feeds Loki-side debugging.
+        Deliberately NOT setting per-tool-call correlation headers here
+        (X-Librechat-Conversation-Id/Message-Id via LibreChat's
+        {{LIBRECHAT_BODY_*}} placeholders) -- tried this and it broke
+        LibreChat's manual "Initialize"/reconnect action for this server with
+        "MCP error -32600: Request body field(s) required to resolve runtime
+        MCP placeholders: conversationId, messageId", since that flow runs
+        outside any chat message and has no body to resolve those from.
+        Live chat-based tool calls worked fine, but breaking manual
+        reinitialize wasn't an acceptable tradeoff. Revisit only if
+        LibreChat adds a way to make body-scoped placeholders optional.
         */}}
-        headers:
-          X-Librechat-Conversation-Id: "{{"{{"}}LIBRECHAT_BODY_CONVERSATIONID{{"}}"}}"
-          X-Librechat-Message-Id: "{{"{{"}}LIBRECHAT_BODY_MESSAGEID{{"}}"}}"
-          X-Librechat-User-Id: "{{"{{"}}LIBRECHAT_USER_ID{{"}}"}}"
       {{- end }}
       {{- range $name, $server := .Values.mcpServers }}
       {{- if $server.enabled }}
