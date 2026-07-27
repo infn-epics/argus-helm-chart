@@ -66,6 +66,43 @@ data:
           {{- end }}
         {{- end }}
 
+    {{- if and .Values.modelSpecs.enabled .Values.modelSpecs.list }}
+    modelSpecs:
+      list:
+        {{- range .Values.modelSpecs.list }}
+        - name: {{ .name | quote }}
+          {{- if .label }}
+          label: {{ .label | quote }}
+          {{- end }}
+          {{- if hasKey . "default" }}
+          default: {{ .default }}
+          {{- end }}
+          preset:
+            endpoint: {{ .preset.endpoint | quote }}
+            {{- if .preset.model }}
+            model: {{ .preset.model | quote }}
+            {{- end }}
+        {{- end }}
+    {{- end }}
+
+    {{- if .Values.speech.enabled }}
+    speech:
+      stt:
+        openai:
+          url: {{ .Values.speech.stt.url | quote }}
+          apiKey: {{ printf "${%s}" .Values.speech.stt.apiKeySecretKey | quote }}
+          model: {{ .Values.speech.stt.model | quote }}
+      tts:
+        openai:
+          url: {{ .Values.speech.tts.url | quote }}
+          apiKey: {{ printf "${%s}" .Values.speech.tts.apiKeySecretKey | quote }}
+          model: {{ .Values.speech.tts.model | quote }}
+          voices:
+            {{- range .Values.speech.tts.voices }}
+            - {{ . | quote }}
+            {{- end }}
+    {{- end }}
+
     mcpServers:
       {{- if .Values.argusMcp.enabled }}
       argus:

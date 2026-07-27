@@ -151,6 +151,25 @@ llm:
       modelDisplayLabel: "Claude"
 
 # -----------------------------------------------------------------------
+# Which endpoint+model a new conversation opens with -> modelSpecs in the
+# rendered librechat.yaml
+# (https://www.librechat.ai/docs/configuration/librechat_yaml/object_structure/model_specs).
+# Distinct from an individual llm.endpoints[].models.default ordering above,
+# which only affects that one endpoint's own model picker, not which
+# endpoint/model is preselected app-wide on a new chat. list[].preset.endpoint
+# must match an llm.endpoints[].name (or a built-in endpoint type) exactly.
+# -----------------------------------------------------------------------
+modelSpecs:
+  enabled: false
+  list: []
+  #  - name: "default"
+  #    label: "Default"
+  #    default: true
+  #    preset:
+  #      endpoint: "OpenAI"
+  #      model: "gpt-4o"
+
+# -----------------------------------------------------------------------
 # Optional: deploy vLLM serving an open-weight model directly on a
 # Kubernetes GPU node, in its own dedicated namespace shared across
 # beamlines/releases (independent of this release's own namespace) —
@@ -258,6 +277,31 @@ vllmService:
   registerAsLlmEndpoint: true
   llmEndpointName: "GPU-vLLM"
   apiKeySecretKey: "VLLM_API_KEY"
+
+# -----------------------------------------------------------------------
+# Voice input/output -> speech.{stt,tts} in the rendered librechat.yaml
+# (https://www.librechat.ai/docs/configuration/librechat_yaml/object_structure/speech).
+# Both stt.url and tts.url point at an OpenAI-API-compatible server (the
+# `openai` provider's optional `url` override, not a real OpenAI account) --
+# self-hosted by design, e.g. https://github.com/speaches-ai/speaches, which
+# implements both /v1/audio/transcriptions and /v1/audio/speech in one
+# server. apiKeySecretKey doesn't need a matching secrets.data entry like
+# llm.endpoints above requires: when no url override is in play elsewhere in
+# this chart, templates/librechat-secret.yaml auto-supplies the placeholder
+# "EMPTY" for both keys, same convention as vllmService.apiKeySecretKey
+# above (self-hosted server, no server-side auth configured).
+# -----------------------------------------------------------------------
+speech:
+  enabled: false
+  stt:
+    url: ""
+    apiKeySecretKey: "STT_API_KEY"
+    model: "Systran/faster-whisper-small"
+  tts:
+    url: ""
+    apiKeySecretKey: "TTS_API_KEY"
+    model: ""
+    voices: []
 
 # -----------------------------------------------------------------------
 # Generic, extensible MCP servers -> mcpServers.<key> in librechat.yaml.
