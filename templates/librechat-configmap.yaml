@@ -68,6 +68,12 @@ data:
 
     {{- if and .Values.modelSpecs.enabled .Values.modelSpecs.list }}
     modelSpecs:
+      {{- if .Values.modelSpecs.addedEndpoints }}
+      addedEndpoints:
+        {{- range .Values.modelSpecs.addedEndpoints }}
+        - {{ . | quote }}
+        {{- end }}
+      {{- end }}
       list:
         {{- range .Values.modelSpecs.list }}
         - name: {{ .name | quote }}
@@ -84,6 +90,9 @@ data:
             {{- end }}
         {{- end }}
     {{- end }}
+
+    interface:
+      modelSelect: {{ .Values.interface.modelSelect }}
 
     {{- if .Values.speech.enabled }}
     speech:

@@ -168,6 +168,23 @@ modelSpecs:
   #    preset:
   #      endpoint: "OpenAI"
   #      model: "gpt-4o"
+  # IMPORTANT: LibreChat's own default behavior is that ANY non-empty list
+  # above hides the normal endpoint/model picker entirely (modelSelect,
+  # presets, parameters) - users get ONLY the specs listed above unless every
+  # other endpoint they should still be able to pick is named here too, and
+  # interface.modelSelect below is true. See
+  # https://www.librechat.ai/docs/configuration/librechat_yaml/object_structure/model_specs.
+  addedEndpoints: []
+
+# -----------------------------------------------------------------------
+# UI feature toggles -> interface in the rendered librechat.yaml. Only
+# modelSelect is exposed here (LibreChat's own upstream default is already
+# true) - it matters specifically alongside modelSpecs.addedEndpoints above,
+# since a non-empty modelSpecs.list otherwise hides the endpoint/model
+# dropdown regardless of this setting.
+# -----------------------------------------------------------------------
+interface:
+  modelSelect: true
 
 # -----------------------------------------------------------------------
 # Optional: deploy vLLM serving an open-weight model directly on a
