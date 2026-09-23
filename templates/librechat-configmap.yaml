@@ -84,10 +84,7 @@ data:
           default: {{ .default }}
           {{- end }}
           preset:
-            endpoint: {{ .preset.endpoint | quote }}
-            {{- if .preset.model }}
-            model: {{ .preset.model | quote }}
-            {{- end }}
+            {{- toYaml .preset | nindent 12 }}
         {{- end }}
     {{- end }}
 
