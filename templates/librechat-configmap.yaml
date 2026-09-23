@@ -64,6 +64,13 @@ data:
             {{ $key }}: {{ $value | quote }}
             {{- end }}
           {{- end }}
+          {{- if .tokenConfig }}
+          tokenConfig:
+            {{- range $model, $cfg := .tokenConfig }}
+            {{ $model | quote }}:
+              {{- toYaml $cfg | nindent 14 }}
+            {{- end }}
+          {{- end }}
         {{- end }}
 
     {{- if and .Values.modelSpecs.enabled .Values.modelSpecs.list }}
